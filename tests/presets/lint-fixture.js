@@ -25,9 +25,9 @@ export async function lintFixture(fixture, config) {
 
   return results
     .flatMap(({ filePath, messages }) =>
-      messages.map(({ line, message, ruleId }) => ({
+      messages.map(({ line, message, ruleId, severity }) => ({
         message,
-        where: `${relative(locateFixture(fixture), filePath)}:${line} ${ruleId}`,
+        where: `${relative(locateFixture(fixture), filePath)}:${line} ${ruleId}${severity === 2 ? '' : ' (not an error)'}`,
       })),
     )
     .sort((a, b) => (a.where < b.where ? -1 : 1));

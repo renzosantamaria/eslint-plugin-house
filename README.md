@@ -10,8 +10,8 @@ what is in `lib/` and `bin/` is what runs.
 
 - ESLint `^9.39.0 || ^10.9.0`, flat config. The test suite runs on 9.39.0 and
   on 10.12.0, and was run once on 10.9.0.
-- `vue-eslint-parser` 10 is an optional peer. Only the three Vue rules need
-  it, so a project without Vue installs nothing extra.
+- `vue-eslint-parser` `^10.4.1` is an optional peer. Only the three Vue rules
+  need it, so a project without Vue installs nothing extra.
 - Developed and tested on Node 22.
 
 ## Install
@@ -50,6 +50,12 @@ export default [
 ];
 ```
 
+In a project with `.vue` files, `vue()` and `time()` count on the project's own
+config to set the Vue parser and to register the `vue` plugin, as
+`withNuxt(...)` and the flat configs of `eslint-plugin-vue` do. Where
+`eslint-plugin-vue` is installed but not registered, pass `vue: false` to
+`time()`.
+
 The default export is the plugin itself, for wiring a rule by hand:
 
 ```js
@@ -76,16 +82,18 @@ rules leave these alone:
   `exported`. As in ESLint itself, only the two `-line` forms count in a `//`
   comment, so `// global state lives here` is prose.
 - TypeScript: `@ts-check`, `@ts-nocheck`, `@ts-ignore`, `@ts-expect-error`,
-  `/// <reference />`, `/// <amd-module />`, `/// <amd-dependency />` and a
-  `@type` annotation.
+  `/// <reference />`, `/// <amd-module />`, `/// <amd-dependency />`, and a
+  `@type` annotation in a `/** */` block, the only place TypeScript reads it.
 - Test runners: `@vitest-environment`, `@jest-environment` and their
   `-options` forms, as a `//` line or a docblock.
 - Coverage: `v8 ignore`, `c8 ignore`, `istanbul ignore`.
 - Others: `prettier-ignore`, `@vite-ignore`, `@__PURE__`, `#__PURE__` and the
   shebang line.
 - In a Vue template: `<!-- eslint-disable -->` and its `-line`, `-next-line`
-  and `eslint-enable` forms, `<!-- prettier-ignore -->` and
-  `<!-- prettier-ignore-attribute -->`.
+  and `eslint-enable` forms, `<!-- prettier-ignore -->`,
+  `<!-- prettier-ignore-attribute -->`, and the four that `vue-tsc` reads:
+  `<!-- @vue-expect-error -->`, `<!-- @vue-ignore -->`, `<!-- @vue-skip -->` and
+  `<!-- @vue-generic -->`.
 
 ### `house/short-comments`
 
@@ -128,9 +136,9 @@ price('ten');
 ### `house/no-template-comments`
 
 Reports HTML comments in a Vue single-file component: inside `<template>` and
-between the blocks of the file. Needs `vue-eslint-parser`; on any other file
-it does nothing. JavaScript comments inside a template expression are not
-reported. No options.
+between the blocks of the file, also when the component has no `<template>`.
+Needs `vue-eslint-parser`; on any other file it does nothing. JavaScript
+comments inside a template expression are not reported. No options.
 
 ```vue
 <template>
@@ -144,7 +152,9 @@ reported. No options.
 Reports every comment in the `<style>` blocks of a Vue single-file component:
 `/* */` in any block, and `//` in a block whose `lang` is `scss`, `sass`,
 `less`, `styl` or `stylus`. Text inside a string or an unquoted `url()` is not
-a comment. Needs `vue-eslint-parser`. No options.
+a comment. Both end with their line at the latest, so one that is never closed
+hides nothing below it. Where `//` opens a comment, an address on a line of its
+own inside `url()` needs quotes. Needs `vue-eslint-parser`. No options.
 
 ```vue
 <style scoped lang="scss">
@@ -163,10 +173,17 @@ The root element of a component carries the name of the component in
 kebab-case, so a class in the browser says which file drew it:
 `UserCard.vue` has a root with class `user-card`. Needs `vue-eslint-parser`.
 
+The name is the file name up to its first dot, so `MapView.client.vue` is
+`map-view`. A run of capitals is one word: `FAQList.vue` is `faq-list` and
+`AButton.vue` is `a-button`.
+
 The rule looks for the element the component actually draws. It looks past a
 `<template>` wrapper and past a child component (any tag that starts with a
-capital), up to five levels, to the first element inside. With several roots,
-one of them carrying the name is enough. Only a static `class` counts.
+capital), up to five levels, to the first element inside. A named slot of a
+child component, such as `<template #fallback>`, is passed over when the
+component has other content. A `<slot />` draws no element, so it is no root
+and a component that only hands on its slot is not reported. With several
+roots, one of them carrying the name is enough. Only a static `class` counts.
 
 | Option         | Default | Meaning                                                                                                                                         |
 | -------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -187,6 +204,7 @@ rules: {
 ```
 
 Without the option the rule looks inside `NuxtLink` and reports the `<span>`.
+The message then says that it looked inside `<NuxtLink>` and names the option.
 
 ## Presets
 
@@ -207,6 +225,8 @@ Without the option the rule looks inside `NuxtLink` and reports the `<span>`.
 | ------- | --------------------------------------------------------------- |
 | `files` | `['**/*.{spec,test,e2e-spec}.{js,mjs,cjs,jsx,ts,mts,cts,tsx}']` |
 
+`files` is a list of at least one glob.
+
 ```js
 ...specs(),
 ...specs({ files: ['**/*.spec.ts', 'e2e/**/*.ts'] }),
@@ -215,7 +235,8 @@ Without the option the rule looks inside `NuxtLink` and reports the `<span>`.
 ### `vue()`
 
 `house/no-template-comments` and `house/no-style-comments` on `**/*.vue`. It
-does not set the parser: the project's own config does that.
+takes no options and does not set the parser: the project's own config does
+that.
 
 ```js
 ...vue(),
@@ -228,10 +249,10 @@ bans `toLocaleString`, `toLocaleDateString`, `toLocaleTimeString` and
 `Intl.DateTimeFormat`, with or without `new`, everywhere except the listed
 utility files. It is built on ESLint's own `no-restricted-syntax`.
 
-| Option  | Default                                  | Meaning                                                                                 |
-| ------- | ---------------------------------------- | --------------------------------------------------------------------------------------- |
-| `utils` | required                                 | Globs of the files that may format dates. At least one.                                 |
-| `vue`   | whether `eslint-plugin-vue` is installed | Also sets `vue/no-restricted-syntax` on `**/*.vue`, which reaches template expressions. |
+| Option  | Default                                  | Meaning                                                                                                           |
+| ------- | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `utils` | required                                 | Globs of the files that may format dates. At least one.                                                           |
+| `vue`   | whether `eslint-plugin-vue` is installed | `true` or `false`. `true` also sets `vue/no-restricted-syntax` on `**/*.vue`, which reaches template expressions. |
 
 ```js
 ...time({ utils: ['src/utils/time.ts'] }),
@@ -244,25 +265,30 @@ The `vue` block needs the `vue` plugin to be registered by the project's
 config, as `@nuxt/eslint` and `eslint-plugin-vue`'s own configs do. Pass
 `vue: false` if it is installed but not used.
 
-In flat config the last block that sets a rule wins. A project that already
-sets `no-restricted-syntax` merges the lists instead of using the preset:
+In flat config the last block that sets a rule wins, so the preset and a
+project's own `no-restricted-syntax` replace each other. A project with a list
+of its own keeps the preset first, for the block that covers templates, and
+sets the core rule after it: its own list in every file, both lists outside the
+utility files.
 
 ```js
-import { timeSelectors } from 'eslint-plugin-house';
+import { time, timeSelectors } from 'eslint-plugin-house';
+
+const utils = ['src/utils/time.ts'];
+const own = [{ selector: 'ForInStatement', message: 'No for...in.' }];
 
 export default [
+  ...time({ utils }),
+  { rules: { 'no-restricted-syntax': ['error', ...own] } },
   {
-    ignores: ['src/utils/time.ts'],
-    rules: {
-      'no-restricted-syntax': [
-        'error',
-        { selector: 'WithStatement', message: 'No with.' },
-        ...timeSelectors,
-      ],
-    },
+    ignores: utils,
+    rules: { 'no-restricted-syntax': ['error', ...own, ...timeSelectors] },
   },
 ];
 ```
+
+A project that also sets `vue/no-restricted-syntax` merges that list the same
+way, in a block for `**/*.vue`.
 
 ### `pure({ folder, banned })`
 
@@ -272,7 +298,7 @@ in it can be tested without either. It is built on ESLint's own
 
 | Option           | Default  | Meaning                                                                                          |
 | ---------------- | -------- | ------------------------------------------------------------------------------------------------ |
-| `folder`         | required | The folder, relative to the config file. Script files in it, at any depth, are covered.          |
+| `folder`         | required | The folder, as a plain path with forward slashes. Script files in it, at any depth, are covered. |
 | `banned.imports` | `[]`     | Modules the folder may not import, as gitignore-style patterns: `'vue'`, `'@nestjs/*'`, `'~/*'`. |
 | `banned.globals` | `[]`     | Globals the folder may not touch: `'window'`, `'process'`.                                       |
 
@@ -282,6 +308,17 @@ in it can be tested without either. It is built on ESLint's own
   banned: { imports: ['vue', '@nestjs/*'], globals: ['window', 'process'] },
 }),
 ```
+
+`folder` is relative to ESLint's base path: the folder of the config file, or
+the working directory when ESLint is started with `--config`. An absolute path,
+a backslash or a `..` is refused. A folder that matches no file cannot be told
+from a clean one, so a misspelt name is not detected.
+
+In `banned.imports` a plain name such as `'vue'` bans the module and what is
+under it, `vue/server-renderer`, and not a file of the folder's own that is
+imported as `./vue`. A pattern with a wildcard and no slash, such as `'*.vue'`,
+matches at any depth. `node:events` is a name of its own, to list beside
+`events`.
 
 Whatever is banned, a relative import that leaves the folder is reported:
 
@@ -295,12 +332,21 @@ import { client } from '../../http/client.js'; // Reported: outside src/domain.
   read `require()` or `import()` calls.
 - An import through an alias (`~/`, `@/`) leaves the folder unseen. List the
   alias in `banned.imports`.
+- Where functions are imported automatically, as in Nuxt, the framework and the
+  project's own composables are globals with no import statement. List them in
+  `banned.globals`.
+- Only the `../` that a path opens with are counted. A path that steps into a
+  folder and then climbs twice, `./tax/../../http/client.js`, is reported
+  whether it leaves or not, and so is one that leaves and comes back by name,
+  `../../domain/money.js`.
 - A file more than four folders below `folder` is held to the rule of the
   fourth: an import that climbs five levels or more is reported, also when it
-  stays inside.
+  stays inside. The message says so.
 - The preset sets `no-restricted-imports` for the folder, and
-  `no-restricted-globals` when a global is banned. A later block that sets the
-  same rule for the same files replaces it.
+  `no-restricted-globals` when a global is banned. The last block that sets a
+  rule wins: the preset replaces what an earlier block set for these files, and
+  a later block replaces the preset. A project with entries of its own for
+  these rules repeats them in `banned.imports` and `banned.globals`.
 
 ## `house-stylesheets`
 
@@ -316,14 +362,18 @@ npx house-stylesheets app/assets
 app/assets/main.scss:12:3: No comments in stylesheets.
 ```
 
-| Exit code | Meaning                                      |
-| --------- | -------------------------------------------- |
-| `0`       | No comments.                                 |
-| `1`       | At least one comment.                        |
-| `2`       | No path was given, or a path does not exist. |
+| Exit code | Meaning                                                                |
+| --------- | ---------------------------------------------------------------------- |
+| `0`       | No comments in the stylesheets that were read.                         |
+| `1`       | At least one comment.                                                  |
+| `2`       | No path was given, a path does not exist, or a file could not be read. |
 
-`//` counts in `.scss` and not in `.css`. `node_modules` and folders whose name
-starts with a dot are skipped.
+Only `.css` and `.scss` files are read. Any other file is passed over, also
+when it is named on the command line. `//` counts in `.scss` and not in `.css`.
+`node_modules`, folders whose name starts with a dot and symbolic links inside
+a folder are skipped; a link named on the command line is followed. A string or
+a `url(` that is never closed ends with its line, as in
+[`house/no-style-comments`](#houseno-style-comments).
 
 ## Adopting a rule over a backlog
 

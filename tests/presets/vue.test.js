@@ -25,3 +25,10 @@ test('vue() leaves script files alone', async () => {
   ]);
   assert.deepEqual(await rulesFor('user.js'), []);
 });
+
+test('vue() refuses options, for it has none', () => {
+  assert.throws(
+    () => vue({ files: ['app/**/*.vue'] }),
+    new TypeError('vue() takes no options.'),
+  );
+});

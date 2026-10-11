@@ -1,29 +1,11 @@
 import assert from 'node:assert/strict';
-import {
-  mkdirSync,
-  mkdtempSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from 'node:fs';
-import { tmpdir } from 'node:os';
-import { dirname, join, relative } from 'node:path';
+import fs, { symlinkSync } from 'node:fs';
+import { syncBuiltinESMExports } from 'node:module';
+import { join, relative } from 'node:path';
 import { test } from 'node:test';
 
 import { locateStylesheetComments } from '../lib/stylesheets.js';
-
-function plantFiles(t, files) {
-  const root = mkdtempSync(join(tmpdir(), 'house-stylesheets-'));
-
-  t.after(() => rmSync(root, { force: true, recursive: true }));
-
-  for (const [path, text] of Object.entries(files)) {
-    mkdirSync(dirname(join(root, path)), { recursive: true });
-    writeFileSync(join(root, path), text);
-  }
-
-  return root;
-}
+import { plantFiles } from './plant-files.js';
 
 const locateIn = (root, paths = ['.']) =>
   locateStylesheetComments(paths.map((path) => join(root, path))).map(
@@ -36,6 +18,47 @@ test('comments are located by file, line and column', (t) => {
   });
 
   assert.deepEqual(locateIn(root), ['app.scss:2:15', 'app.scss:4:1']);
+});
+
+test('comments that share a line or follow a comment of several lines are located', (t) => {
+  const root = plantFiles(t, {
+    'a.css': '/* a */ /* b */\n/* c\n   d */ /* e */\n',
+  });
+
+  assert.deepEqual(locateIn(root), [
+    'a.css:1:1',
+    'a.css:1:9',
+    'a.css:2:1',
+    'a.css:3:9',
+  ]);
+});
+
+test('a hundred thousand comments in one stylesheet are located in one pass', (t) => {
+  const root = plantFiles(t, { 'a.css': '/* a */\n'.repeat(100_000) });
+  const started = Date.now();
+
+  assert.equal(locateIn(root).at(-1), 'a.css:100000:1');
+  assert.ok(Date.now() - started < 2000);
+});
+
+test('a folder is listed in name order, whatever order it comes in', (t) => {
+  const root = plantFiles(t, {
+    'a.css': '/* a */',
+    'b.css': '/* b */',
+    'c.css': '/* c */',
+  });
+  const { readdirSync } = fs;
+
+  t.mock.method(fs, 'readdirSync', (...given) =>
+    readdirSync(...given).reverse(),
+  );
+  syncBuiltinESMExports();
+  t.after(() => {
+    t.mock.restoreAll();
+    syncBuiltinESMExports();
+  });
+
+  assert.deepEqual(locateIn(root), ['a.css:1:1', 'b.css:1:1', 'c.css:1:1']);
 });
 
 test('folders are searched to any depth, in name order', (t) => {
@@ -87,6 +110,18 @@ test('a link is not followed', (t) => {
   symlinkSync(root, join(root, 'loop'));
 
   assert.deepEqual(locateIn(root), ['a.css:1:1']);
+});
+
+test('a link that is named directly is followed', (t) => {
+  const root = plantFiles(t, { 'src/a.css': '/* a */' });
+
+  symlinkSync(join(root, 'src'), join(root, 'styles'));
+  symlinkSync(join(root, 'src/a.css'), join(root, 'b.css'));
+
+  assert.deepEqual(locateIn(root, ['styles', 'b.css']), [
+    'styles/a.css:1:1',
+    'b.css:1:1',
+  ]);
 });
 
 test('a file can be named directly', (t) => {

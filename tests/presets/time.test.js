@@ -1,10 +1,14 @@
 import assert from 'node:assert/strict';
+import { cpSync } from 'node:fs';
+import { join } from 'node:path';
 import { test } from 'node:test';
+import { pathToFileURL } from 'node:url';
 
 import vuePlugin from 'eslint-plugin-vue';
 
 import { time, timeSelectors } from '../../lib/index.js';
 import { Linter } from '../eslint.js';
+import { plantFiles } from '../plant-files.js';
 import { lintFixture, parseVue, reportsIn } from './lint-fixture.js';
 
 const utils = ['src/time.js'];
@@ -31,6 +35,7 @@ test('time() bans locale formatting in templates when told Vue is there', async 
   assert.deepEqual(await reportsIn('time', config), [
     'src/Receipt.vue:3 no-restricted-syntax',
     'src/Receipt.vue:7 vue/no-restricted-syntax',
+    'src/Receipt.vue:8 vue/no-restricted-syntax',
     'src/receipt.js:1 no-restricted-syntax',
     'src/receipt.js:2 no-restricted-syntax',
     'src/receipt.js:3 no-restricted-syntax',
@@ -39,10 +44,37 @@ test('time() bans locale formatting in templates when told Vue is there', async 
   ]);
 });
 
+test('time() counts on the project to register the vue plugin for templates', async () => {
+  await assert.rejects(
+    reportsIn('time', [parseVue, ...time({ utils, vue: true })]),
+    /could not find plugin "vue"/i,
+  );
+});
+
 test('time() covers templates by itself when eslint-plugin-vue is installed', () => {
   assert.deepEqual(
     time({ utils }).map(({ name }) => name),
     ['house/time', 'house/time/vue'],
+  );
+});
+
+test('time() leaves templates alone by itself when only the Vue parser is installed', async (t) => {
+  const root = plantFiles(t, {
+    'node_modules/vue-eslint-parser/index.js': '',
+    'package.json': '{ "type": "module" }',
+  });
+
+  cpSync(new URL('../../lib/', import.meta.url), join(root, 'lib'), {
+    recursive: true,
+  });
+
+  const elsewhere = await import(
+    pathToFileURL(join(root, 'lib/presets/time.js'))
+  );
+
+  assert.deepEqual(
+    elsewhere.time({ utils }).map(({ name }) => name),
+    ['house/time'],
   );
 });
 
@@ -69,12 +101,14 @@ test('time() takes several utilities', async () => {
   ]);
 });
 
-test('time() says where formatting belongs', async () => {
-  const [{ message }] = await lintFixture('time', time({ utils, vue: false }));
+test('time() says where formatting belongs, whatever the formatter', async () => {
+  const reports = await lintFixture('time', time({ utils, vue: false }));
 
-  assert.equal(
-    message,
-    "Format dates and times in the project's time utility, where the time zone is explicit. For a number, use Intl.NumberFormat.",
+  assert.deepEqual(
+    [...new Set(reports.map(({ message }) => message))],
+    [
+      "Format dates and times in the project's time utility, where the time zone is explicit. For a number, use Intl.NumberFormat.",
+    ],
   );
 });
 
@@ -92,6 +126,19 @@ for (const [given, options] of [
       new TypeError(
         'time({ utils }) must be an array of at least 1 non-empty strings.',
       ),
+    );
+  });
+}
+
+for (const [given, vue] of [
+  ['a word', 'false'],
+  ['a number', 0],
+  ['nothing', null],
+]) {
+  test(`time() refuses ${given} where it is told whether Vue is there`, () => {
+    assert.throws(
+      () => time({ utils, vue }),
+      new TypeError('time({ vue }) must be true or false.'),
     );
   });
 }

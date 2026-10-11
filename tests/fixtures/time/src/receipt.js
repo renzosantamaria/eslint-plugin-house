@@ -8,3 +8,5 @@ export const stamp = (date) => date.toISOString();
 export const price = new Intl.NumberFormat('en-GB');
 export const zone = new Clock.DateTimeFormat('en-GB');
 export const shout = (name) => name.toLocaleUpperCase('en-GB');
+export const inZone = (date) => date.toLocaleStringIn('Europe/London');
+export const joined = (list) => list.intoLocaleString('en-GB');

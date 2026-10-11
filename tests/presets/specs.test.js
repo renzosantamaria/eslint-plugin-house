@@ -67,3 +67,26 @@ test('specs() refuses an option it does not know', () => {
     new TypeError('specs() does not take file; it takes files.'),
   );
 });
+
+test('specs() refuses options that are no object', () => {
+  assert.throws(
+    () => specs(null),
+    new TypeError('specs() takes an object, not null.'),
+  );
+});
+
+for (const [given, files] of [
+  ['an empty list of globs', []],
+  ['a blank glob', ['e2e/**/*.js', ' ']],
+  ['a glob that is not a list', 'e2e/**/*.js'],
+  ['a glob that is not text', [5]],
+]) {
+  test(`specs() refuses ${given}`, () => {
+    assert.throws(
+      () => specs({ files }),
+      new TypeError(
+        'specs({ files }) must be an array of at least 1 non-empty strings.',
+      ),
+    );
+  });
+}

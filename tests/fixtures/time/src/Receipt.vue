@@ -5,4 +5,5 @@ const label = paidAt.toLocaleString('en-GB');
 
 <template>
   <p class="receipt">{{ label }} {{ paidAt.toLocaleDateString('en-GB') }}</p>
+  <p>{{ new Intl.DateTimeFormat('en-GB').format(paidAt) }}</p>
 </template>

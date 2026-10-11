@@ -44,6 +44,26 @@ new RuleTester({ languageOptions: { parser: vueParser } }).run(
         code: template('<section class="step2-panel" />'),
       },
       {
+        name: 'a name that opens with a single letter',
+        filename: 'components/AButton.vue',
+        code: template('<button class="a-button" />'),
+      },
+      {
+        name: 'a name that opens with an acronym',
+        filename: 'components/FAQList.vue',
+        code: template('<ul class="faq-list" />'),
+      },
+      {
+        name: 'a name with a single letter in the middle',
+        filename: 'components/UserAButton.vue',
+        code: template('<button class="user-a-button" />'),
+      },
+      {
+        name: 'a name with a Nuxt suffix',
+        filename: 'components/MapView.client.vue',
+        code: template('<div class="map-view" />'),
+      },
+      {
         name: 'a name that is already lower case',
         filename: 'pages/index.vue',
         code: template('<main class="index" />'),
@@ -69,6 +89,51 @@ new RuleTester({ languageOptions: { parser: vueParser } }).run(
         code: template(
           '<template v-if="user"><div class="user-card">Ada</div></template>',
         ),
+      },
+      {
+        name: 'a named slot before the content of a child component',
+        filename: 'components/UserCard.vue',
+        code: template(
+          '<ClientOnly>',
+          '  <template #fallback><p>Loading</p></template>',
+          '  <div class="user-card">Ada</div>',
+          '</ClientOnly>',
+        ),
+      },
+      {
+        name: 'a default slot written out under a named one',
+        filename: 'components/UserCard.vue',
+        code: template(
+          '<BaseCard>',
+          '  <template #header><h2>Ada</h2></template>',
+          '  <template #default><div class="user-card">Ada</div></template>',
+          '</BaseCard>',
+        ),
+      },
+      {
+        name: 'a slot without a name under a named one',
+        filename: 'components/UserCard.vue',
+        code: template(
+          '<BaseList>',
+          '  <template #empty><p>Nobody</p></template>',
+          '  <template v-slot="{ user }"><li class="user-card">{{ user }}</li></template>',
+          '</BaseList>',
+        ),
+      },
+      {
+        name: 'the first of the named slots when a child component has no other content',
+        filename: 'components/UserCard.vue',
+        code: template(
+          '<BaseCard>',
+          '  <template #header><h2 class="user-card">Ada</h2></template>',
+          '  <template #footer><p>Online</p></template>',
+          '</BaseCard>',
+        ),
+      },
+      {
+        name: 'a component that only hands on its slot',
+        filename: 'components/UserCard.vue',
+        code: template('<slot />'),
       },
       {
         name: 'the element inside five wrappers carries the name',
@@ -167,6 +232,37 @@ new RuleTester({ languageOptions: { parser: vueParser } }).run(
         ],
       },
       {
+        name: 'a name with a Nuxt suffix on a root without it',
+        filename: 'components/MapView.server.vue',
+        code: template('<div class="map">Ada</div>'),
+        errors: [
+          {
+            message:
+              'The root element of MapView should carry class "map-view" — it has "map".',
+          },
+        ],
+      },
+      {
+        name: 'a root whose classes only contain the name',
+        filename: 'components/UserCard.vue',
+        code: template('<div class="user-card__inner my-user-card">Ada</div>'),
+        errors: [{ messageId: 'missing' }],
+      },
+      {
+        name: 'the name on the second element inside a child component',
+        filename: 'components/UserCard.vue',
+        code: template(
+          '<Teleport to="body"><p>Hi</p><div class="user-card">Ada</div></Teleport>',
+        ),
+        errors: [{ messageId: 'missingInside', line: 2, column: 21 }],
+      },
+      {
+        name: 'a root without the name under a slot',
+        filename: 'components/UserCard.vue',
+        code: template('<slot name="before" />', '<div>Ada</div>'),
+        errors: [{ messageId: 'missing', line: 3, column: 1 }],
+      },
+      {
         name: 'a root that only binds the name',
         filename: 'components/UserCard.vue',
         code: template(`<div :class="'user-card'">Ada</div>`),
@@ -181,7 +277,7 @@ new RuleTester({ languageOptions: { parser: vueParser } }).run(
         name: 'the name on a child component whose own root is drawn below it',
         filename: 'components/UserCard.vue',
         code: template('<BaseCard class="user-card"><div>Ada</div></BaseCard>'),
-        errors: [{ messageId: 'missing', line: 2, column: 29 }],
+        errors: [{ messageId: 'missingInside', line: 2, column: 29 }],
       },
       {
         name: 'the name on a <template> wrapper',
@@ -203,7 +299,19 @@ new RuleTester({ languageOptions: { parser: vueParser } }).run(
         code: template(
           wrapped(['A', 'B', 'C', 'D', 'E', 'F'], '<div class="user-card" />'),
         ),
-        errors: [{ messageId: 'missing', line: 2, column: 16 }],
+        errors: [
+          {
+            messageId: 'missingInside',
+            data: {
+              component: 'UserCard',
+              expected: 'user-card',
+              found: '',
+              through: 'A',
+            },
+            line: 2,
+            column: 16,
+          },
+        ],
       },
       {
         name: 'a link that is not listed as drawing its own root is given the name',
@@ -211,7 +319,27 @@ new RuleTester({ languageOptions: { parser: vueParser } }).run(
         code: template(
           '<NuxtLink class="user-card" to="/users"><span>Ada</span></NuxtLink>',
         ),
-        errors: [{ messageId: 'missing', line: 2, column: 41 }],
+        errors: [
+          {
+            message:
+              'The root element of UserCard should carry class "user-card". It was looked for inside <NuxtLink>; if <NuxtLink> draws an element of its own, list it in drawsOwnRoot.',
+            line: 2,
+            column: 41,
+          },
+        ],
+      },
+      {
+        name: 'a root without the name inside a child component under a <template> wrapper',
+        filename: 'components/UserCard.vue',
+        code: template(
+          '<template v-if="user"><BaseCard><div class="card">Ada</div></BaseCard></template>',
+        ),
+        errors: [
+          {
+            message:
+              'The root element of UserCard should carry class "user-card" — it has "card". It was looked for inside <BaseCard>; if <BaseCard> draws an element of its own, list it in drawsOwnRoot.',
+          },
+        ],
       },
       {
         name: 'the element inside a component listed as drawing its own root carries the name',

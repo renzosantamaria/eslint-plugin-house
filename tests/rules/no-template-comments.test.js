@@ -41,6 +41,16 @@ new RuleTester({ languageOptions: { parser: vueParser } }).run(
         ),
       },
       {
+        name: 'a directive that the Vue type checker reads',
+        filename: 'UserCard.vue',
+        code: lines(
+          '<template>',
+          '  <!-- @vue-expect-error the prop is wrong on purpose -->',
+          '  <UserName :name="5" />',
+          '</template>',
+        ),
+      },
+      {
         name: 'a JavaScript comment inside an expression',
         filename: 'UserCard.vue',
         code: lines(
@@ -103,6 +113,31 @@ new RuleTester({ languageOptions: { parser: vueParser } }).run(
           '</template>',
         ),
         errors: [{ messageId: 'comment', line: 1 }],
+      },
+      {
+        name: 'an HTML comment between the template and the script',
+        filename: 'UserCard.vue',
+        code: lines(
+          '<template>',
+          '  <p>Ada</p>',
+          '</template>',
+          '<!-- Shows one user. -->',
+          '<script setup>',
+          'const name = "Ada";',
+          '</script>',
+        ),
+        errors: [{ messageId: 'comment', line: 4 }],
+      },
+      {
+        name: 'an HTML comment in a component without a template',
+        filename: 'UserCard.vue',
+        code: lines(
+          '<!-- Shows one user. -->',
+          '<script setup>',
+          'const name = "Ada";',
+          '</script>',
+        ),
+        errors: [{ messageId: 'comment', line: 1, column: 1 }],
       },
       {
         name: 'an HTML comment beside a directive',

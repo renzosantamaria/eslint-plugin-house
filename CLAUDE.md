@@ -23,13 +23,16 @@ is what a consumer runs.
 
 ## Where things are
 
-- `lib/rules/` one file per rule; `lib/presets/` one file per preset;
-  `lib/index.js` is the only entry point.
-- `tests/` holds every test. Test files end in `.test.js`, which is what
-  `node --test` picks up. Rules are tested with ESLint's `RuleTester`,
-  presets by linting a folder under `tests/fixtures/`.
-- No fixture may be named `*.test.*`, `test-*` or `test.*`: `node --test`
-  would run it.
+- `lib/rules/` one file per rule; `lib/presets/` one file per preset, beside
+  the `files.js` and `options.js` they share; `lib/index.js` is the only entry
+  point. A module under `lib/` that no entry point reaches fails
+  `tests/package.test.js`.
+- `tests/` holds every test, in files that end in `.test.js`. Rules are tested
+  with ESLint's `RuleTester`, presets by linting a folder under
+  `tests/fixtures/`.
+- `node --test` runs more than `*.test.js`: also `*-test.*`, `*_test.*`,
+  `test-*`, `test.*` and every script in a folder named `test`. No fixture may
+  have such a name; `tests/fixtures.test.js` holds this.
 - Tests import ESLint from `tests/eslint.js`, never from `eslint`. That file
   picks the major from `ESLINT_MAJOR`; ESLint 9.39 is installed under the
   alias `eslint-9`.
@@ -37,6 +40,9 @@ is what a consumer runs.
 ## When a change touches a rule or preset
 
 - Update its section in `README.md` in the same change.
+- `tests/readme.test.js` lints a fixture with the README's example that merges
+  the `time` selectors, and checks the peer ranges the README states. Keep that
+  example a whole config file.
 - A new tool directive goes in `lib/directives.js`, with a row in
   `tests/directives.test.js` and a mention in the README list.
 - Changing the supported ESLint range means running the tests on the new

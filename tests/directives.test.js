@@ -23,6 +23,7 @@ const DIRECTIVES = [
   ['Block', ' @__PURE__ '],
   ['Block', ' #__PURE__ '],
   ['Block', '* @type {import("eslint").Linter.Config[]} '],
+  ['Block', '*\n * @type {Cart}\n '],
   ['Block', ' eslint eqeqeq: "off" '],
   ['Block', ' eslint-disable no-console '],
   ['Block', ' eslint-enable no-console '],
@@ -31,6 +32,8 @@ const DIRECTIVES = [
   ['Block', ' global window '],
   ['Block', ' globals window, document '],
   ['Line', '/ <reference types="node" />'],
+  ['Line', '/<reference types="node" />'],
+  ['Line', '/  <reference types="node" />'],
   ['Line', '/ <amd-module name="cart" />'],
   ['Line', '/ <amd-dependency path="legacy" />'],
   ['Shebang', '/usr/bin/env node'],
@@ -49,7 +52,9 @@ const PROSE = [
   ['Block', '* @param {string} id The id of the cart. '],
   ['Line', ' prettier-ignored on purpose'],
   ['Line', ' TODO: @ts-ignore this later'],
-  ['Block', ' <reference types="node" /> '],
+  ['Block', '/ <reference types="node" /> '],
+  ['Line', ' @type {Cart}'],
+  ['Block', ' @type {Cart} '],
 ];
 
 const TEMPLATE_DIRECTIVES = [
@@ -60,6 +65,10 @@ const TEMPLATE_DIRECTIVES = [
   ' eslint-enable ',
   ' prettier-ignore ',
   ' prettier-ignore-attribute ',
+  ' @vue-expect-error ',
+  ' @vue-generic {T} ',
+  ' @vue-ignore ',
+  ' @vue-skip ',
 ];
 
 const TEMPLATE_PROSE = [
@@ -68,6 +77,8 @@ const TEMPLATE_PROSE = [
   ' eslint ',
   ' prettier-ignore-everything ',
   ' @ts-expect-error ',
+  ' @vue-ignored ',
+  ' @vue-next ',
 ];
 
 for (const [type, value] of DIRECTIVES) {
