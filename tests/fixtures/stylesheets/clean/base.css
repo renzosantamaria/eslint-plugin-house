@@ -1,0 +1,7 @@
+.card {
+  background: url(//cdn.example.com/card.png);
+}
+
+.card::after {
+  content: '/* not a comment */';
+}
