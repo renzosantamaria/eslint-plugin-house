@@ -1,0 +1,10 @@
+$brand: #c00;
+
+.card {
+  background: url(https://cdn.example.com/card.png);
+  color: $brand;
+
+  &::after {
+    content: '// not a comment';
+  }
+}

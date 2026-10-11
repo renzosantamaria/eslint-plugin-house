@@ -1,0 +1,9 @@
+@page {
+  margin: 2cm;
+}
+/*
+ * Links are printed in full.
+ */
+a::after {
+  content: ' (' attr(href) ')';
+}

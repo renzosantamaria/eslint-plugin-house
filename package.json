@@ -1,0 +1,47 @@
+{
+  "name": "eslint-plugin-house",
+  "version": "1.0.0",
+  "description": "House ESLint rules: short comments, one time utility per project, folders that stay pure.",
+  "keywords": [
+    "eslint",
+    "eslintplugin",
+    "eslint-plugin"
+  ],
+  "type": "module",
+  "exports": {
+    ".": "./lib/index.js",
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "house-stylesheets": "bin/house-stylesheets.js"
+  },
+  "files": [
+    "bin",
+    "lib"
+  ],
+  "scripts": {
+    "format": "prettier --write .",
+    "lint": "eslint . --max-warnings=0 && prettier --check .",
+    "test": "npm run test:eslint-10 && npm run test:eslint-9",
+    "test:eslint-10": "node --test",
+    "test:eslint-9": "ESLINT_MAJOR=9 node --test",
+    "verify": "npm run lint && npm test"
+  },
+  "peerDependencies": {
+    "eslint": "^9.39.0 || ^10.9.0",
+    "vue-eslint-parser": "^10.4.1"
+  },
+  "peerDependenciesMeta": {
+    "vue-eslint-parser": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.12.0",
+    "eslint-9": "npm:eslint@9.39.0",
+    "eslint-plugin-vue": "10.11.1",
+    "prettier": "3.9.10",
+    "vue-eslint-parser": "10.4.1"
+  }
+}
